@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ShapeMetry – Encoder</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .encoder-container {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+            gap: 20px;
+        }
+        .encoder-panel {
+            flex: 1;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        .encoder-panel h2 {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        #selected-images {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+        }
+        #selected-images img {
+            width: 100%;
+            border-radius: 8px;
+            border: 2px solid transparent;
+        }
+        #selected-images img:hover {
+            border-color: #007bff;
+        }
+        #selected-texts {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+        #selected-texts .text-chip {
+            background: #f0f0f0;
+            padding: 8px 16px;
+            border-radius: 20px;
+        }
+        #encodeBtn {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #results {
+            margin-top: 30px;
+        }
+        .result-item {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .best-match {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+        }
+    </style>
+</head>
+<body>
+    <div class="encoder-container">
+        <div class="encoder-panel">
+            <h2>Selected Images</h2>
+            <div id="selected-images"></div>
+        </div>
+
+        <div class="encoder-panel">
+            <h2>Selected Texts</h2>
+            <div id="selected-texts"></div>
+        </div>
+    </div>
+
+    <button id="encodeBtn">🔍 Encode & Compare</button>
+
+    <div id="results" class="encoder-panel" style="max-width: 900px; margin: 0 auto; display:none;">
+        <h2>Similarity Results</h2>
+        <div id="result-list"></div>
+    </div>
+
+    <script>
+        // Load saved selections
+        const data = JSON.parse(localStorage.getItem('selection') || '{}');
+        const images = data.images || [];
+        const texts = data.shapes || [];
+
+        const imgContainer = document.getElementById('selected-images');
+        const txtContainer = document.getElementById('selected-texts');
+
+        // Populate UI
+        images.forEach(path => {
+            const img = document.createElement('img');
+            img.src = path.startsWith('static/') ? path : 'static/' + path;
+            imgContainer.appendChild(img);
+        });
+
+        texts.forEach(t => {
+            const div = document.createElement('div');
+            div.className = 'text-chip';
+            div.textContent = t;
+            txtContainer.appendChild(div);
+        });
+
+        // Handle encoding
+        document.getElementById('encodeBtn').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('results');
+            resultDiv.style.display = 'block';
+            const listDiv = document.getElementById('result-list');
+            listDiv.innerHTML = '<p>Encoding and comparing... please wait ⏳</p>';
+
+            const resp = await fetch('/encode', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    images,
+                    texts: texts.map(t => `a photo of a ${t}`)
+                })
+            });
+
+            const results = await resp.json();
+            listDiv.innerHTML = '';
+            results.forEach(r => {
+                const item = document.createElement('div');
+                item.className = 'result-item';
+                if (r.score >= 0.9) item.classList.add('best-match');
+                item.innerHTML = `
+                    <div><strong>Image:</strong> ${r.image}</div>
+                    <div><strong>Best Match:</strong> ${r.best_text}</div>
+                    <div><strong>Score:</strong> ${r.score.toFixed(3)}</div>
+                `;
+                listDiv.appendChild(item);
+            });
+        });
+    </script>
+</body>
+</html>

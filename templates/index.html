@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ShapeCLIP Dataset</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen">
+
+  <!-- Header -->
+  <header class="flex justify-between items-center p-4 bg-white shadow">
+    <h1 class="text-2xl font-bold text-gray-800">🧩 ShapeCLIP Dataset</h1>
+    <button id="next-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+      Next →
+    </button>
+  </header>
+
+  <!-- Main layout -->
+  <main class="grid grid-cols-2 gap-6 p-6">
+
+    <!-- === IMAGES SECTION === -->
+    <section>
+      <h2 class="text-xl font-semibold mb-2">🖼️ Images</h2>
+
+      <!-- Preview Area -->
+      <div id="image-preview" class="flex flex-wrap gap-2 border rounded-lg p-2 bg-white min-h-[100px]"></div>
+
+      <!-- Filters -->
+      <div class="flex gap-3 my-4">
+        <select id="shape-filter" class="p-2 border rounded">
+          <option value="">All Shapes</option>
+          <option value="circle">Circle</option>
+          <option value="square">Square</option>
+          <option value="triangle">Triangle</option>
+          <option value="pentagon">Pentagon</option>
+        </select>
+        <select id="color-filter" class="p-2 border rounded">
+          <option value="">All Colors</option>
+          <option value="red">Red</option>
+          <option value="green">Green</option>
+          <option value="blue">Blue</option>
+          <option value="yellow">Yellow</option>
+          <option value="orange">Orange</option>
+          <option value="purple">Purple</option>
+        </select>
+      </div>
+
+      <!-- Image Grid -->
+      <div id="image-grid" class="grid grid-cols-3 md:grid-cols-4 gap-3">
+        {% for item in items %}
+          <div class="image-item border rounded-lg cursor-pointer hover:ring-2 hover:ring-blue-400 transition"
+               data-shape="{{ item.image_path.split('/')[-2] }}"
+               data-color="{{ item.image_path.split('_')[-1].split('.')[0] }}">
+            <img src="{{ url_for('static', filename=item.image_path) }}" alt="{{ item.text }}" class="rounded-md w-full h-24 object-contain">
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- === TEXT SECTION === -->
+    <section>
+      <h2 class="text-xl font-semibold mb-2">📝 Texts</h2>
+
+      <!-- Preview Area -->
+      <div id="text-preview" class="flex flex-wrap gap-2 border rounded-lg p-2 bg-white min-h-[100px]"></div>
+
+      <!-- Search -->
+      <div class="my-4">
+        <input type="text" id="text-search" placeholder="Search text..." class="w-full p-2 border rounded">
+      </div>
+
+      <!-- Text List -->
+      <div id="text-list" class="grid grid-cols-1 gap-2">
+        {% for item in items %}
+          <div class="text-item border rounded-lg p-2 bg-white cursor-pointer hover:ring-2 hover:ring-blue-400 transition text-sm">
+            {{ item.text }}
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+
+  </main>
+
+  <!-- === SCRIPT === -->
+  <script>
+    const imageItems = document.querySelectorAll('.image-item');
+    const textItems = document.querySelectorAll('.text-item');
+    const imgPreview = document.getElementById('image-preview');
+    const textPreview = document.getElementById('text-preview');
+    let selectedImages = [];
+    let selectedTexts = [];
+
+    // Image selection
+    imageItems.forEach(item => {
+      item.addEventListener('click', () => {
+        const src = item.querySelector('img').src;
+        if (selectedImages.includes(src)) {
+          selectedImages = selectedImages.filter(i => i !== src);
+          item.classList.remove('ring-4', 'ring-blue-500');
+        } else if (selectedImages.length < 4) {
+          selectedImages.push(src);
+          item.classList.add('ring-4', 'ring-blue-500');
+        }
+        updatePreviews();
+      });
+    });
+
+    // Text selection
+    textItems.forEach(item => {
+      item.addEventListener('click', () => {
+        const text = item.textContent.trim();
+        if (selectedTexts.includes(text)) {
+          selectedTexts = selectedTexts.filter(t => t !== text);
+          item.classList.remove('ring-4', 'ring-blue-500');
+        } else if (selectedTexts.length < 4) {
+          selectedTexts.push(text);
+          item.classList.add('ring-4', 'ring-blue-500');
+        }
+        updatePreviews();
+      });
+    });
+
+    // Update preview areas
+    function updatePreviews() {
+      imgPreview.innerHTML = selectedImages.map(src => `<img src="${src}" class="w-16 h-16 rounded-md border object-contain">`).join('');
+      textPreview.innerHTML = selectedTexts.map(t => `<div class="p-1 bg-blue-100 rounded text-xs">${t}</div>`).join('');
+    }
+
+    // Filters
+    const shapeFilter = document.getElementById('shape-filter');
+    const colorFilter = document.getElementById('color-filter');
+
+    function applyImageFilters() {
+      const shape = shapeFilter.value;
+      const color = colorFilter.value;
+
+      imageItems.forEach(item => {
+        const matchesShape = !shape || item.dataset.shape === shape;
+        const matchesColor = !color || item.dataset.color === color;
+        item.style.display = (matchesShape && matchesColor) ? '' : 'none';
+      });
+    }
+
+    shapeFilter.addEventListener('change', applyImageFilters);
+    colorFilter.addEventListener('change', applyImageFilters);
+
+    // Text search
+    const textSearch = document.getElementById('text-search');
+    textSearch.addEventListener('input', () => {
+      const query = textSearch.value.toLowerCase();
+      textItems.forEach(item => {
+        item.style.display = item.textContent.toLowerCase().includes(query) ? '' : 'none';
+      });
+    });
+
+    // Go to encoder
+    document.getElementById('next-btn').addEventListener('click', () => {
+      const data = {
+        images: selectedImages,
+        texts: selectedTexts
+      };
+      const encoded = encodeURIComponent(JSON.stringify(data));
+      window.location.href = `/encode?data=${encoded}`;
+    });
+  </script>
+
+</body>
+</html>

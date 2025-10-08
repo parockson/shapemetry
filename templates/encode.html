@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ShapeCLIP Encoder</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 text-gray-800 min-h-screen">
+  <header class="flex justify-between items-center p-6 bg-white shadow">
+    <h1 class="text-2xl font-bold text-gray-800">🧠 ShapeCLIP Encoder</h1>
+    <div class="flex gap-3">
+      <a href="/" class="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400 transition">← Back</a>
+      <a href="/results" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">Next →</a>
+    </div>
+  </header>
+
+  <main class="p-8 max-w-6xl mx-auto">
+    <div class="bg-white shadow-md rounded-lg p-6">
+      <h2 class="text-xl font-semibold mb-4">Your Selected Items</h2>
+
+      <!-- Images -->
+      <h3 class="text-lg font-semibold mb-2">🖼️ Images</h3>
+      <div class="flex flex-wrap gap-3 border rounded-lg p-3 bg-gray-50">
+        {% if selected_data.images %}
+          {% for img in selected_data.images %}
+            <img src="{{ img }}" class="w-20 h-20 rounded-lg border object-contain">
+          {% endfor %}
+        {% else %}
+          <p class="text-sm text-gray-500 italic">No images selected.</p>
+        {% endif %}
+      </div>
+
+      <!-- Texts -->
+      <h3 class="text-lg font-semibold mt-6 mb-2">📝 Texts</h3>
+      <div class="flex flex-wrap gap-2 border rounded-lg p-3 bg-gray-50">
+        {% if selected_data.texts %}
+          {% for txt in selected_data.texts %}
+            <div class="p-2 bg-blue-100 rounded text-sm">{{ txt }}</div>
+          {% endfor %}
+        {% else %}
+          <p class="text-sm text-gray-500 italic">No texts selected.</p>
+        {% endif %}
+      </div>
+
+      <!-- Similarity Scores -->
+      <div class="mt-8">
+        <h3 class="text-lg font-semibold mb-3">📊 CLIP Similarity Scores</h3>
+        {% if similarities %}
+          <table class="w-full border-collapse border border-gray-300 text-sm">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="border p-2">Image</th>
+                <th class="border p-2">Text</th>
+                <th class="border p-2">Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for s in similarities %}
+              <tr class="hover:bg-gray-50">
+                <td class="border p-2">
+                  <img src="{{ s.image }}" class="w-12 h-12 rounded-md border object-contain mx-auto">
+                </td>
+                <td class="border p-2">{{ s.text }}</td>
+                <td class="border p-2 text-center font-semibold text-blue-600">{{ s.score }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="text-sm text-gray-500 italic">No similarity data available yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,25 @@
+image_path,text
+static/data/images/circle/circle_red.png,red circle
+static/data/images/circle/circle_green.png,green circle
+static/data/images/circle/circle_blue.png,blue circle
+static/data/images/circle/circle_yellow.png,yellow circle
+static/data/images/circle/circle_orange.png,orange circle
+static/data/images/circle/circle_purple.png,purple circle
+static/data/images/square/square_red.png,red square
+static/data/images/square/square_green.png,green square
+static/data/images/square/square_blue.png,blue square
+static/data/images/square/square_yellow.png,yellow square
+static/data/images/square/square_orange.png,orange square
+static/data/images/square/square_purple.png,purple square
+static/data/images/triangle/triangle_red.png,red triangle
+static/data/images/triangle/triangle_green.png,green triangle
+static/data/images/triangle/triangle_blue.png,blue triangle
+static/data/images/triangle/triangle_yellow.png,yellow triangle
+static/data/images/triangle/triangle_orange.png,orange triangle
+static/data/images/triangle/triangle_purple.png,purple triangle
+static/data/images/pentagon/pentagon_red.png,red pentagon
+static/data/images/pentagon/pentagon_green.png,green pentagon
+static/data/images/pentagon/pentagon_blue.png,blue pentagon
+static/data/images/pentagon/pentagon_yellow.png,yellow pentagon
+static/data/images/pentagon/pentagon_orange.png,orange pentagon
+static/data/images/pentagon/pentagon_purple.png,purple pentagon

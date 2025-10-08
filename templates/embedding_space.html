@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head><title>Embedding Space</title></head>
+<body>
+<h1>Embedding space (PCA 2D)</h1>
+<div id="plot"></div>
+<script>
+  fetch('/static/embedding_coords.json').then(r=>r.json()).then(data=>{
+    const coords = data.coords;
+    const nimg = data.n_images;
+    const texts = data.texts;
+    const img_paths = data.image_paths;
+    // draw simple svg
+    const w=800,h=600,pad=40;
+    let xs = coords.map(c=>c[0]), ys = coords.map(c=>c[1]);
+    let xmin=Math.min(...xs), xmax=Math.max(...xs);
+    let ymin=Math.min(...ys), ymax=Math.max(...ys);
+    function sx(x){ return pad + (x-xmin)/(xmax-xmin)*(w-2*pad); }
+    function sy(y){ return pad + (1-(y-ymin)/(ymax-ymin))*(h-2*pad); }
+    let svg = `<svg width="${w}" height="${h}">`;
+    for(let i=0;i<coords.length;i++){
+      let c=coords[i];
+      let cx=sx(c[0]), cy=sy(c[1]);
+      if(i < nimg){
+        svg += `<circle cx="${cx}" cy="${cy}" r="4" fill="black"></circle>`;
+      } else {
+        let ti = i - nimg;
+        svg += `<rect x="${cx-5}" y="${cy-5}" width="10" height="10" fill="red"></rect>`;
+        svg += `<text x="${cx+6}" y="${cy+4}" font-size="10">${texts[ti]}</text>`;
+      }
+    }
+    svg += `</svg>`;
+    document.getElementById('plot').innerHTML = svg;
+  });
+</script>
+<p><a href="/">Back</a></p>
+</body>
+</html>

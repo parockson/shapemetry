@@ -1,0 +1,98 @@
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background-color: #fafafa;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    display: flex;
+    justify-content: space-between;
+    height: calc(100vh - 70px);
+    padding: 20px;
+}
+
+.left-panel, .right-panel {
+    flex: 1;
+    margin: 0 10px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.left-panel h2, .right-panel h2 {
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+#image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+}
+
+.image-card {
+    border: 2px solid transparent;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: 0.2s;
+    padding: 4px;
+}
+
+.image-card:hover {
+    border-color: #ddd;
+}
+
+.image-card.selected {
+    border-color: #007bff;
+    box-shadow: 0 0 8px rgba(0,123,255,0.5);
+}
+
+.image-card img {
+    width: 100%;
+    border-radius: 8px;
+}
+
+#shape-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+
+.shape-item {
+    background: #f0f0f0;
+    padding: 10px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.shape-item.selected {
+    background: #007bff;
+    color: white;
+}
+
+.bottom-bar {
+    text-align: center;
+    padding: 10px;
+    border-top: 1px solid #eee;
+}
+
+#nextBtn {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: 0.2s;
+}
+
+#nextBtn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}

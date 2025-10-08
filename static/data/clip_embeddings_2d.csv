@@ -1,0 +1,25 @@
+image_path,text,similarity_512d,similarity_2d,img_x,img_y,text_x,text_y
+static/data/images/circle/circle_red.png,red circle,0.3039790093898773,0.47440457,-0.14639792,0.16855611,-0.34196198,-0.07678274
+static/data/images/circle/circle_green.png,green circle,0.33298200368881226,0.9419372,-0.16534154,0.022959506,-0.27274618,-0.056557193
+static/data/images/circle/circle_blue.png,blue circle,0.33070534467697144,0.69231313,-0.18896529,0.05052999,-0.2796679,-0.16947751
+static/data/images/circle/circle_yellow.png,yellow circle,0.34985557198524475,0.9747639,-0.22033519,0.08845976,-0.2898739,0.045782376
+static/data/images/circle/circle_orange.png,orange circle,0.332297682762146,0.9507309,-0.21042725,-0.012106827,-0.34365347,0.09058809
+static/data/images/circle/circle_purple.png,purple circle,0.3549756109714508,0.23478617,-0.1667737,0.047972262,-0.20179959,-0.35484442
+static/data/images/square/square_red.png,red square,0.27869272232055664,0.28799012,-0.14632274,0.06544081,0.008137999,0.063018605
+static/data/images/square/square_green.png,green square,0.31995853781700134,-0.43117398,-0.14763255,-0.0045844316,0.02881857,0.06545348
+static/data/images/square/square_blue.png,blue square,0.3148123025894165,-0.55373245,-0.18156184,0.018729465,0.03208806,-0.06103126
+static/data/images/square/square_yellow.png,yellow square,0.33440452814102173,0.06488162,-0.21105596,0.026511846,0.010415249,0.17328216
+static/data/images/square/square_orange.png,orange square,0.3176380693912506,-0.10911758,-0.18415795,-0.03733074,-0.020881576,0.22968404
+static/data/images/square/square_purple.png,purple square,0.3424484133720398,-0.48181403,-0.15808727,0.023359744,0.10078436,-0.27102315
+static/data/images/triangle/triangle_red.png,red triangle,0.3512285649776459,0.6510141,0.27804098,0.188475,0.009818582,0.08636378
+static/data/images/triangle/triangle_green.png,green triangle,0.352055162191391,0.64082223,0.261353,0.1502257,0.018392807,0.10470758
+static/data/images/triangle/triangle_blue.png,blue triangle,0.3434463143348694,0.8195399,0.26930743,0.18703827,0.041305628,-0.00013023366
+static/data/images/triangle/triangle_yellow.png,yellow triangle,0.3651348352432251,0.7684829,0.21492484,0.17581262,0.04036274,0.2089324
+static/data/images/triangle/triangle_orange.png,orange triangle,0.34254491329193115,0.40293282,0.20149818,0.10791278,-0.01990053,0.25805813
+static/data/images/triangle/triangle_purple.png,purple triangle,0.35842031240463257,-0.0968149,0.2523489,0.17988993,0.11581693,-0.20118554
+static/data/images/pentagon/pentagon_red.png,red pentagon,0.303542822599411,0.54492354,0.13215919,-0.25878355,0.20379405,-0.021298492
+static/data/images/pentagon/pentagon_green.png,green pentagon,0.29712507128715515,0.4077752,0.14018847,-0.2681243,0.22818805,0.014106927
+static/data/images/pentagon/pentagon_blue.png,blue pentagon,0.28836962580680847,0.8211751,0.14736114,-0.27151605,0.25735372,-0.12950513
+static/data/images/pentagon/pentagon_yellow.png,yellow pentagon,0.3164413571357727,-0.22157799,0.039847773,-0.12847449,0.21870796,0.12644209
+static/data/images/pentagon/pentagon_orange.png,orange pentagon,0.2715330123901367,-0.63496363,0.050066046,-0.22857669,0.16610141,0.2108643
+static/data/images/pentagon/pentagon_purple.png,purple pentagon,0.30260229110717773,0.96454835,0.13996343,-0.2923766,0.29039893,-0.33544838
