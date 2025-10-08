@@ -50,3 +50,5 @@ pip install -r requirements.txt
 - If you want a pure browser app without Flask, ask and I'll adapt.
 
 Enjoy — run the generator then the app and tell me what you'd like changed!
+
+# shapemetry
