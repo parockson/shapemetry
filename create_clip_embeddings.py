@@ -1,14 +1,13 @@
 """
 create_clip_embeddings.py
-Generates CLIP embeddings (vectors) for your geometric shapes dataset,
-and reduces them to 2D for visualization or clustering.
+Generates CLIP embeddings (vectors) for your geometric shapes dataset.
 
 Outputs:
-    - clip_embeddings.pt : Full 512D embeddings (PyTorch tensors)
-    - clip_embeddings_2d.csv : 2D embeddings + cosine similarity
+    - clip_embeddings.pt : PyTorch tensors
+    - clip_embeddings.csv : CSV with vectors + cosine similarity
 
 Requires:
-    pip install open_clip_torch torch torchvision pillow tqdm pandas scikit-learn
+    pip install open_clip_torch torch torchvision pillow tqdm pandas
 """
 
 import torch
@@ -18,16 +17,13 @@ import csv
 from tqdm import tqdm
 import os
 import pandas as pd
-from sklearn.decomposition import PCA
-from numpy import dot
-from numpy.linalg import norm
 
 # =======================
 # CONFIGURATION
 # =======================
 csv_path = os.path.join("static", "data", "captions.csv")
 save_pt_path = os.path.join("static", "data", "clip_embeddings.pt")
-save_csv_path = os.path.join("static", "data", "clip_embeddings_2d.csv")
+save_csv_path = os.path.join("static", "data", "clip_embeddings.csv")
 
 model_name = "ViT-B-32"
 pretrained = "openai"
@@ -87,7 +83,7 @@ image_features = torch.cat(image_features)
 text_features = torch.cat(text_features)
 
 # =======================
-# SAVE FULL 512D .PT FILE
+# SAVE AS .PT
 # =======================
 torch.save({
     "image_embeddings": image_features,
@@ -97,39 +93,25 @@ torch.save({
     "similarities": similarities
 }, save_pt_path)
 
-print(f"✅ Saved 512D tensor embeddings: {save_pt_path}")
+# =======================
+# SAVE AS .CSV
+# =======================
+print("🧾 Saving embeddings to CSV (this may take a minute)...")
 
-# =======================
-# REDUCE TO 2D SPACE (PCA)
-# =======================
-print("📉 Reducing embeddings to 2D space using PCA...")
-pca = PCA(n_components=2)
-image_2d = pca.fit_transform(image_features.numpy())
-text_2d = pca.fit_transform(text_features.numpy())
-
-# Compute cosine similarities in 2D
-similarities_2d = [
-    dot(image_2d[i], text_2d[i]) / (norm(image_2d[i]) * norm(text_2d[i]))
-    for i in range(len(image_2d))
-]
-
-# =======================
-# SAVE 2D EMBEDDINGS AS CSV
-# =======================
-print("🧾 Saving 2D embeddings to CSV...")
+# Convert embeddings to numpy
+image_np = image_features.numpy()
+text_np = text_features.numpy()
 
 rows = []
 for i in range(len(image_paths)):
-    rows.append({
+    row = {
         "image_path": image_paths[i],
         "text": texts[i],
-        "similarity_512d": similarities[i],
-        "similarity_2d": similarities_2d[i],
-        "img_x": image_2d[i, 0],
-        "img_y": image_2d[i, 1],
-        "text_x": text_2d[i, 0],
-        "text_y": text_2d[i, 1]
-    })
+        "similarity": similarities[i],
+        **{f"img_vec_{j}": image_np[i, j] for j in range(image_np.shape[1])},
+        **{f"text_vec_{j}": text_np[i, j] for j in range(text_np.shape[1])}
+    }
+    rows.append(row)
 
 df = pd.DataFrame(rows)
 df.to_csv(save_csv_path, index=False)
@@ -137,9 +119,8 @@ df.to_csv(save_csv_path, index=False)
 # =======================
 # SUMMARY
 # =======================
-print("✅ Embedding generation complete!")
-print(f"   - 🧠 512D tensor file: {save_pt_path}")
-print(f"   - 📄 2D CSV file: {save_csv_path}")
+print(f"✅ Saved CLIP embeddings:")
+print(f"   - 🧠 Tensor file: {save_pt_path}")
+print(f"   - 📄 CSV file: {save_csv_path}")
 print(f"📊 Total samples encoded: {len(image_paths)}")
-print(f"💡 Avg similarity (512D): {sum(similarities)/len(similarities):.4f}")
-print(f"💡 Avg similarity (2D): {sum(similarities_2d)/len(similarities_2d):.4f}")
+print(f"💡 Average similarity: {sum(similarities)/len(similarities):.4f}")

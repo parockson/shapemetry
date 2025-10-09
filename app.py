@@ -1,99 +1,119 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
 import os
-from PIL import Image
 
-# ==========================
-# Configuration
-# ==========================
-st.set_page_config(page_title="CLIP Encoder Viewer", layout="wide")
+# ---- Page setup ----
+st.set_page_config(page_title="CLIP Encoder Selector", layout="wide")
+st.title("🧠 CLIP Encoder Selection Interface")
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-STATIC_DIR = os.path.join(BASE_DIR, "static", "data")
-EMBEDDINGS_PATH = os.path.join(STATIC_DIR, "clip_embeddings_2d.csv")
-
-# ==========================
-# Load Dataset
-# ==========================
-@st.cache_data
-def load_embeddings():
-    if os.path.exists(EMBEDDINGS_PATH):
-        df = pd.read_csv(EMBEDDINGS_PATH)
-        df["image_path"] = df["image_path"].apply(lambda x: x.replace("\\", "/"))
-        return df
-    else:
-        st.error(f"Embeddings file not found: {EMBEDDINGS_PATH}")
-        return pd.DataFrame(columns=[
-            "image_path", "text", "similarity_512d", "similarity_2d",
-            "img_x", "img_y", "text_x", "text_y"
-        ])
-
-data = load_embeddings()
-
-# ==========================
-# Streamlit UI
-# ==========================
-st.title("🧠 CLIP Encoder Viewer")
-st.write("View precomputed 2D CLIP embeddings for selected images and texts.")
-
-if data.empty:
+# ---- Load Data ----
+csv_path = "static/data/clip_embeddings_2d.csv"
+if not os.path.exists(csv_path):
+    st.error(f"File not found: {csv_path}")
     st.stop()
 
-# ==========================
-# Image Grid Selection
-# ==========================
-st.subheader("🖼️ Select Images")
-selected_images = st.session_state.get("selected_images", set())
+df = pd.read_csv(csv_path)
 
-image_files = data["image_path"].unique().tolist()
-num_cols = 6
-rows = [image_files[i:i + num_cols] for i in range(0, len(image_files), num_cols)]
+# ---- Group by images and texts ----
+image_paths = df['image_path'].unique()
+texts = df['text'].unique()
 
-for row in rows:
-    cols = st.columns(num_cols)
-    for col, img_path in zip(cols, row):
-        img_full_path = os.path.join(BASE_DIR, img_path)
-        img_full_path = os.path.normpath(img_full_path)
+# ---- Session state ----
+if "selected_images" not in st.session_state:
+    st.session_state.selected_images = []
+if "selected_texts" not in st.session_state:
+    st.session_state.selected_texts = []
 
-        if os.path.exists(img_full_path):
-            col.image(img_full_path, use_container_width=True)
-            img_name = os.path.basename(img_path)
+# ---- Image Selection ----
+st.subheader("🖼️ Select up to 4 Images")
 
-            if col.checkbox(f"{img_name}", key=img_path):
-                selected_images.add(img_path)
-            elif img_path in selected_images:
-                selected_images.remove(img_path)
+cols = st.columns(6)
+for idx, image_path in enumerate(image_paths):
+    col = cols[idx % 6]
+    with col:
+        if os.path.exists(image_path):
+            st.image(image_path, width='stretch')
         else:
-            col.warning("Missing image")
+            st.warning(f"Missing: {image_path.split('/')[-1]}")
 
-st.session_state["selected_images"] = selected_images
+        label = os.path.basename(image_path)
+        if label in st.session_state.selected_images:
+            if st.button("✅ Deselect", key=f"img_{idx}"):
+                st.session_state.selected_images.remove(label)
+        else:
+            if len(st.session_state.selected_images) < 4:
+                if st.button("Select", key=f"img_{idx}"):
+                    st.session_state.selected_images.append(label)
+            else:
+                st.button("Limit reached", key=f"img_disabled_{idx}", disabled=True)
 
-# ==========================
-# Text Selection
-# ==========================
-st.subheader("✍️ Select Text Captions")
-text_options = data["text"].unique().tolist()
-selected_texts = st.multiselect("Select text captions:", text_options)
+# ---- Text Selection ----
+st.subheader("💬 Select up to 4 Texts")
 
-# ==========================
-# Display Encoders
-# ==========================
-if selected_images or selected_texts:
-    st.subheader("🔢 Encoders")
+text_cols = st.columns(4)
+for i, text_item in enumerate(texts):
+    col = text_cols[i % 4]
+    with col:
+        if text_item in st.session_state.selected_texts:
+            if st.button("✅ Deselect", key=f"text_{i}"):
+                st.session_state.selected_texts.remove(text_item)
+        else:
+            if len(st.session_state.selected_texts) < 4:
+                if st.button(f"Select: {text_item}", key=f"text_btn_{i}"):
+                    st.session_state.selected_texts.append(text_item)
+            else:
+                st.button("Limit reached", key=f"text_disabled_{i}", disabled=True)
 
-    if selected_images:
-        img_df = data[data["image_path"].isin(selected_images)][
-            ["image_path", "img_x", "img_y"]
-        ].rename(columns={"image_path": "Image", "img_x": "x", "img_y": "y"})
-        st.markdown("#### 🖼️ Selected Image Encoders")
-        st.dataframe(img_df, hide_index=True, use_container_width=True)
+# ---- Display Selected Encoders ----
+st.markdown("---")
+st.subheader("📊 Selected Encoders")
 
-    if selected_texts:
-        text_df = data[data["text"].isin(selected_texts)][
-            ["text", "text_x", "text_y"]
-        ].rename(columns={"text": "Text", "text_x": "x", "text_y": "y"})
-        st.markdown("#### ✍️ Selected Text Encoders")
-        st.dataframe(text_df, hide_index=True, use_container_width=True)
-
+# --- Image Encoders Table ---
+if st.session_state.selected_images:
+    selected_img_data = df[df["image_path"].str.contains('|'.join(st.session_state.selected_images))]
+    st.dataframe(selected_img_data[["image_path", "img_x", "img_y"]], width='stretch')
 else:
-    st.info("Select some images and/or texts to view their encoders.")
+    st.info("No images selected yet.")
+
+# --- Text Encoders Table ---
+if st.session_state.selected_texts:
+    selected_text_data = df[df["text"].isin(st.session_state.selected_texts)]
+    st.dataframe(selected_text_data[["text", "text_x", "text_y"]], width='stretch')
+else:
+    st.info("No texts selected yet.")
+
+# ---- Scatterplots Side-by-Side ----
+if st.session_state.selected_images or st.session_state.selected_texts:
+    st.markdown("---")
+    st.subheader("🔎 2D Encoder Spaces")
+
+    col1, col2 = st.columns(2)
+
+    # --- Image Encoder Plot ---
+    with col1:
+        if st.session_state.selected_images:
+            fig_img, ax_img = plt.subplots()
+            ax_img.scatter(selected_img_data["img_x"], selected_img_data["img_y"], s=80)
+            for _, row in selected_img_data.iterrows():
+                ax_img.text(row["img_x"], row["img_y"], os.path.basename(row["image_path"]), fontsize=8, ha='right')
+            ax_img.set_title("🖼️ Image Encoder Space (2D)")
+            ax_img.set_xlabel("img_x")
+            ax_img.set_ylabel("img_y")
+            st.pyplot(fig_img, use_container_width=True)
+        else:
+            st.info("No images selected for plotting.")
+
+    # --- Text Encoder Plot ---
+    with col2:
+        if st.session_state.selected_texts:
+            fig_txt, ax_txt = plt.subplots()
+            ax_txt.scatter(selected_text_data["text_x"], selected_text_data["text_y"], color='orange', s=80)
+            for _, row in selected_text_data.iterrows():
+                ax_txt.text(row["text_x"], row["text_y"], row["text"], fontsize=8, ha='right')
+            ax_txt.set_title("💬 Text Encoder Space (2D)")
+            ax_txt.set_xlabel("text_x")
+            ax_txt.set_ylabel("text_y")
+            st.pyplot(fig_txt, use_container_width=True)
+        else:
+            st.info("No texts selected for plotting.")
