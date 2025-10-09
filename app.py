@@ -1,104 +1,99 @@
-from flask import Flask, render_template, request, jsonify
-import csv
+import streamlit as st
+import pandas as pd
 import os
-import json
-import torch
-import open_clip
 from PIL import Image
 
-app = Flask(__name__, static_folder='static')
+# ==========================
+# Configuration
+# ==========================
+st.set_page_config(page_title="CLIP Encoder Viewer", layout="wide")
 
-CAPTIONS_PATH = os.path.join("static", "data", "captions.csv")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, "static", "data")
+EMBEDDINGS_PATH = os.path.join(STATIC_DIR, "clip_embeddings_2d.csv")
 
 # ==========================
-# Load OpenCLIP model
+# Load Dataset
 # ==========================
-device = "cuda" if torch.cuda.is_available() else "cpu"
+@st.cache_data
+def load_embeddings():
+    if os.path.exists(EMBEDDINGS_PATH):
+        df = pd.read_csv(EMBEDDINGS_PATH)
+        df["image_path"] = df["image_path"].apply(lambda x: x.replace("\\", "/"))
+        return df
+    else:
+        st.error(f"Embeddings file not found: {EMBEDDINGS_PATH}")
+        return pd.DataFrame(columns=[
+            "image_path", "text", "similarity_512d", "similarity_2d",
+            "img_x", "img_y", "text_x", "text_y"
+        ])
 
-model, _, preprocess = open_clip.create_model_and_transforms(
-    'ViT-B-32', pretrained='openai'
-)
-tokenizer = open_clip.get_tokenizer('ViT-B-32')
-model = model.to(device)
-model.eval()
-
-
-# ==========================
-# Load dataset
-# ==========================
-def load_dataset():
-    """Load image paths and captions from CSV."""
-    data = []
-    if os.path.exists(CAPTIONS_PATH):
-        with open(CAPTIONS_PATH, newline='', encoding='utf-8') as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                rel_path = row["image_path"].replace("\\", "/")
-                if rel_path.startswith("static/"):
-                    rel_path = rel_path[len("static/"):]
-                data.append({
-                    "image_path": rel_path,
-                    "text": row["text"]
-                })
-    return data
-
+data = load_embeddings()
 
 # ==========================
-# Routes
+# Streamlit UI
 # ==========================
-@app.route('/')
-def index():
-    items = load_dataset()
-    return render_template('index.html', items=items)
+st.title("🧠 CLIP Encoder Viewer")
+st.write("View precomputed 2D CLIP embeddings for selected images and texts.")
 
+if data.empty:
+    st.stop()
 
-@app.route('/encode', methods=['GET'])
-def encode():
-    """Encoder page showing selected items and CLIP similarity results."""
-    selected = request.args.get('data')
-    selected_data = json.loads(selected) if selected else {"images": [], "texts": []}
+# ==========================
+# Image Grid Selection
+# ==========================
+st.subheader("🖼️ Select Images")
+selected_images = st.session_state.get("selected_images", set())
 
-    similarities = []
-    if selected_data["images"] and selected_data["texts"]:
-        image_embeddings = []
+image_files = data["image_path"].unique().tolist()
+num_cols = 6
+rows = [image_files[i:i + num_cols] for i in range(0, len(image_files), num_cols)]
 
-        for img_path in selected_data["images"]:
-            img_file = os.path.join(app.static_folder, img_path.replace("/static/", "").replace("static/", ""))
-            image = preprocess(Image.open(img_file)).unsqueeze(0).to(device)
-            with torch.no_grad():
-                img_emb = model.encode_image(image)
-                image_embeddings.append(img_emb)
+for row in rows:
+    cols = st.columns(num_cols)
+    for col, img_path in zip(cols, row):
+        img_full_path = os.path.join(BASE_DIR, img_path)
+        img_full_path = os.path.normpath(img_full_path)
 
-        image_embeddings = torch.cat(image_embeddings, dim=0)
-        image_embeddings /= image_embeddings.norm(dim=-1, keepdim=True)
+        if os.path.exists(img_full_path):
+            col.image(img_full_path, use_container_width=True)
+            img_name = os.path.basename(img_path)
 
-        # Tokenize and encode text
-        text_tokens = tokenizer(selected_data["texts"])
-        text_tokens = text_tokens.to(device)
+            if col.checkbox(f"{img_name}", key=img_path):
+                selected_images.add(img_path)
+            elif img_path in selected_images:
+                selected_images.remove(img_path)
+        else:
+            col.warning("Missing image")
 
-        with torch.no_grad():
-            text_embeddings = model.encode_text(text_tokens)
-            text_embeddings /= text_embeddings.norm(dim=-1, keepdim=True)
+st.session_state["selected_images"] = selected_images
 
-        # Compute similarity matrix
-        similarity_matrix = (100.0 * image_embeddings @ text_embeddings.T).softmax(dim=-1)
+# ==========================
+# Text Selection
+# ==========================
+st.subheader("✍️ Select Text Captions")
+text_options = data["text"].unique().tolist()
+selected_texts = st.multiselect("Select text captions:", text_options)
 
-        for i, img_path in enumerate(selected_data["images"]):
-            for j, txt in enumerate(selected_data["texts"]):
-                similarities.append({
-                    "image": img_path,
-                    "text": txt,
-                    "score": round(similarity_matrix[i][j].item(), 3)
-                })
+# ==========================
+# Display Encoders
+# ==========================
+if selected_images or selected_texts:
+    st.subheader("🔢 Encoders")
 
-    return render_template('encode.html', selected_data=selected_data, similarities=similarities)
+    if selected_images:
+        img_df = data[data["image_path"].isin(selected_images)][
+            ["image_path", "img_x", "img_y"]
+        ].rename(columns={"image_path": "Image", "img_x": "x", "img_y": "y"})
+        st.markdown("#### 🖼️ Selected Image Encoders")
+        st.dataframe(img_df, hide_index=True, use_container_width=True)
 
+    if selected_texts:
+        text_df = data[data["text"].isin(selected_texts)][
+            ["text", "text_x", "text_y"]
+        ].rename(columns={"text": "Text", "text_x": "x", "text_y": "y"})
+        st.markdown("#### ✍️ Selected Text Encoders")
+        st.dataframe(text_df, hide_index=True, use_container_width=True)
 
-@app.route('/results', methods=['GET'])
-def results():
-    return render_template('results.html')
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
+else:
+    st.info("Select some images and/or texts to view their encoders.")
