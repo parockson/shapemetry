@@ -187,6 +187,36 @@ if st.session_state.selected_images and st.session_state.selected_texts:
     st.markdown("**Cosine Similarity (Higher = More Similar)**")
     st.dataframe(cosine_table.style.apply(lambda df: highlight_min_max(df, max_cos_idx), axis=None))
 
+    # ---- Best Match / Zero-Shot Classification ----
+    st.markdown("---")
+    st.subheader("🏆 Best Match & Zero-Shot Prediction")
+
+    best_matches = []
+    for i, img in enumerate(st.session_state.selected_images):
+        # Euclidean: smaller = more similar
+        eu_idx = np.argmin(euclidean_distances[i])
+        best_eu = st.session_state.selected_texts[eu_idx]
+        
+        # Cosine: larger = more similar
+        cos_idx = np.argmax(cosine_sim[i])
+        best_cos = st.session_state.selected_texts[cos_idx]
+        
+        best_matches.append({
+            "Image": img,
+            "Best Match (Euclidean)": best_eu,
+            "Best Match (Cosine)": best_cos
+        })
+
+    best_matches_df = pd.DataFrame(best_matches)
+    st.dataframe(best_matches_df, width='stretch')
+
+    st.markdown("""
+**Explanation:**  
+- Each image is compared against all candidate text descriptions.  
+- The text with the **highest similarity** is chosen as the **best match**.  
+- This predicted label represents a **zero-shot classification**—the model was not trained specifically on these labels but generalizes based on its learned understanding of image-text relationships.
+""")
+
     # --- Combined interactive scatter plot with line connecting most similar pair ---
     combined_df = pd.DataFrame({
         "x": np.concatenate([img_coords[:,0], text_coords[:,0]]),
@@ -209,7 +239,7 @@ if st.session_state.selected_images and st.session_state.selected_texts:
             y=[img_coords[img_idx,1], text_coords[txt_idx,1]],
             mode='lines',
             line=dict(color='green', width=2),
-            name='Most Similar Pair'
+            name='Most Similar Pair (Euclidean)'
         )
     )
 
