@@ -1,8 +1,10 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 import numpy as np
 import os
+import plotly.express as px
+import plotly.graph_objects as go
+from sklearn.metrics.pairwise import cosine_similarity
 
 # ---- Page setup ----
 st.set_page_config(page_title="CLIP Encoder Selector", layout="wide")
@@ -33,10 +35,9 @@ for idx, image_path in enumerate(image_paths):
     col = cols[idx % 6]
     with col:
         if os.path.exists(image_path):
-            st.image(image_path, width='stretch')
+            st.image(image_path, width=100)
         else:
             st.warning(f"Missing: {image_path.split('/')[-1]}")
-
         label = os.path.basename(image_path)
         if label in st.session_state.selected_images:
             if st.button("✅ Deselect", key=f"img_{idx}"):
@@ -87,71 +88,129 @@ if st.session_state.selected_images or st.session_state.selected_texts:
     st.markdown("---")
     st.subheader("🔎 2D Encoder Spaces")
 
-    col1, col2 = st.columns(2)
+    # Image scatter
+    if st.session_state.selected_images:
+        fig_img = px.scatter(
+            selected_img_data,
+            x="img_x", y="img_y",
+            text=selected_img_data["image_path"].apply(lambda p: os.path.basename(p)),
+            title="🖼️ Image Encoder Space (2D)"
+        )
+        st.plotly_chart(fig_img, use_container_width=True)
+    else:
+        st.info("No images selected for plotting.")
 
-    # --- Image Encoder Plot ---
-    with col1:
-        if st.session_state.selected_images:
-            fig_img, ax_img = plt.subplots()
-            ax_img.scatter(selected_img_data["img_x"], selected_img_data["img_y"], s=80)
-            for _, row in selected_img_data.iterrows():
-                ax_img.text(row["img_x"], row["img_y"], os.path.basename(row["image_path"]), fontsize=8, ha='right')
-            ax_img.set_title("🖼️ Image Encoder Space (2D)")
-            ax_img.set_xlabel("img_x")
-            ax_img.set_ylabel("img_y")
-            st.pyplot(fig_img, use_container_width=True)
-        else:
-            st.info("No images selected for plotting.")
+    # Text scatter
+    if st.session_state.selected_texts:
+        fig_txt = px.scatter(
+            selected_text_data,
+            x="text_x", y="text_y",
+            text="text",
+            color_discrete_sequence=["orange"],
+            title="💬 Text Encoder Space (2D)"
+        )
+        st.plotly_chart(fig_txt, use_container_width=True)
+    else:
+        st.info("No texts selected for plotting.")
 
-    # --- Text Encoder Plot ---
-    with col2:
-        if st.session_state.selected_texts:
-            fig_txt, ax_txt = plt.subplots()
-            ax_txt.scatter(selected_text_data["text_x"], selected_text_data["text_y"], color='orange', s=80)
-            for _, row in selected_text_data.iterrows():
-                ax_txt.text(row["text_x"], row["text_y"], row["text"], fontsize=8, ha='right')
-            ax_txt.set_title("💬 Text Encoder Space (2D)")
-            ax_txt.set_xlabel("text_x")
-            ax_txt.set_ylabel("text_y")
-            st.pyplot(fig_txt, use_container_width=True)
-        else:
-            st.info("No texts selected for plotting.")
+# ---- Display Readable Similarity Formulas ----
+st.markdown("---")
+st.subheader("📐 Similarity Formulas")
+
+st.markdown(r"""
+**Euclidean Distance**
+
+The distance between an image vector **vᵢ** and a text vector **vₜ** is:
+
+$$
+d(v_i, v_t) = \sqrt{ \sum_{k=1}^{n} (v_{i,k} - v_{t,k})^2 }
+$$
+
+Where:
+- \( n \) is the number of dimensions of the embeddings  
+- Smaller values → more similar
+
+---
+
+**Cosine Similarity**
+
+Measures the angle between **vᵢ** and **vₜ**:
+
+$$
+\text{cosine\_sim}(v_i, v_t) = \frac{v_i \cdot v_t}{\|v_i\| \|v_t\|} 
+= \frac{\sum_{k=1}^{n} v_{i,k} \cdot v_{t,k}}{\sqrt{\sum_{k=1}^{n} v_{i,k}^2} \sqrt{\sum_{k=1}^{n} v_{t,k}^2}}
+$$
+
+- Value ranges from -1 to 1  
+- Larger values → more similar
+""")
 
 # ---- Common Embedding Space ----
 if st.session_state.selected_images and st.session_state.selected_texts:
     st.markdown("---")
     st.subheader("🌐 Common Embedding Space")
 
-    # Prepare coordinates
     img_coords = selected_img_data[["img_x", "img_y"]].to_numpy()
     text_coords = selected_text_data[["text_x", "text_y"]].to_numpy()
-    
-    # Compute Euclidean distance matrix (lower = more similar)
-    distances = np.zeros((len(selected_img_data), len(selected_text_data)))
-    for i, img_vec in enumerate(img_coords):
-        for j, text_vec in enumerate(text_coords):
-            distances[i, j] = np.linalg.norm(img_vec - text_vec)
-    
-    # Build similarity table
-    sim_table = pd.DataFrame(distances, 
-                             index=[os.path.basename(p) for p in st.session_state.selected_images],
-                             columns=st.session_state.selected_texts)
-    st.markdown("**Euclidean Distance (Lower = More Similar)**")
-    st.dataframe(sim_table)
 
-    # Combined Scatterplot
-    fig, ax = plt.subplots()
-    ax.scatter(img_coords[:,0], img_coords[:,1], s=100, c='blue', label='Images')
-    ax.scatter(text_coords[:,0], text_coords[:,1], s=100, c='orange', label='Texts')
-    
-    # Annotate points
-    for idx, row in selected_img_data.iterrows():
-        ax.text(row["img_x"], row["img_y"], os.path.basename(row["image_path"]), fontsize=8, ha='right')
-    for idx, row in selected_text_data.iterrows():
-        ax.text(row["text_x"], row["text_y"], row["text"], fontsize=8, ha='right')
-    
-    ax.set_title("Combined 2D Embedding Space")
-    ax.set_xlabel("X")
-    ax.set_ylabel("Y")
-    ax.legend()
-    st.pyplot(fig, use_container_width=True)
+    # --- Euclidean distance ---
+    euclidean_distances = np.linalg.norm(img_coords[:, np.newaxis, :] - text_coords[np.newaxis, :, :], axis=2)
+    euclidean_table = pd.DataFrame(
+        euclidean_distances,
+        index=[os.path.basename(p) for p in st.session_state.selected_images],
+        columns=st.session_state.selected_texts
+    )
+
+    # --- Cosine similarity ---
+    cosine_sim = cosine_similarity(img_coords, text_coords)
+    cosine_table = pd.DataFrame(
+        cosine_sim,
+        index=[os.path.basename(p) for p in st.session_state.selected_images],
+        columns=st.session_state.selected_texts
+    )
+
+    # --- Identify most similar pairs ---
+    min_euc_idx = np.unravel_index(np.argmin(euclidean_distances), euclidean_distances.shape)
+    max_cos_idx = np.unravel_index(np.argmax(cosine_sim), cosine_sim.shape)
+
+    # --- Styling functions ---
+    def highlight_min_max(df, highlight_idx):
+        styled = pd.DataFrame('', index=df.index, columns=df.columns)
+        r, c = highlight_idx
+        styled.iloc[r, c] = 'background-color: lightgreen'
+        return styled
+
+    # --- Display tables with highlights ---
+    st.markdown("**Euclidean Distance (Lower = More Similar)**")
+    st.dataframe(euclidean_table.style.apply(lambda df: highlight_min_max(df, min_euc_idx), axis=None))
+
+    st.markdown("**Cosine Similarity (Higher = More Similar)**")
+    st.dataframe(cosine_table.style.apply(lambda df: highlight_min_max(df, max_cos_idx), axis=None))
+
+    # --- Combined interactive scatter plot with line connecting most similar pair ---
+    combined_df = pd.DataFrame({
+        "x": np.concatenate([img_coords[:,0], text_coords[:,0]]),
+        "y": np.concatenate([img_coords[:,1], text_coords[:,1]]),
+        "label": [os.path.basename(p) for p in st.session_state.selected_images] + st.session_state.selected_texts,
+        "type": ["Image"]*len(img_coords) + ["Text"]*len(text_coords)
+    })
+
+    fig_combined = px.scatter(
+        combined_df, x="x", y="y", color="type", text="label",
+        title="Combined 2D Embedding Space (Interactive)",
+        color_discrete_map={"Image":"blue", "Text":"orange"}
+    )
+
+    # Add line connecting most similar pair (Euclidean)
+    img_idx, txt_idx = min_euc_idx
+    fig_combined.add_trace(
+        go.Scatter(
+            x=[img_coords[img_idx,0], text_coords[txt_idx,0]],
+            y=[img_coords[img_idx,1], text_coords[txt_idx,1]],
+            mode='lines',
+            line=dict(color='green', width=2),
+            name='Most Similar Pair'
+        )
+    )
+
+    st.plotly_chart(fig_combined, use_container_width=True)
