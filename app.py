@@ -4,7 +4,6 @@ import numpy as np
 import os
 import plotly.express as px
 import plotly.graph_objects as go
-from sklearn.metrics.pairwise import cosine_similarity
 
 # ---- Page setup ----
 st.set_page_config(page_title="CLIP Encoder Selector", layout="wide")
@@ -69,14 +68,12 @@ for i, text_item in enumerate(texts):
 st.markdown("---")
 st.subheader("📊 Selected Encoders")
 
-# --- Image Encoders Table ---
 if st.session_state.selected_images:
     selected_img_data = df[df["image_path"].str.contains('|'.join(st.session_state.selected_images))]
     st.dataframe(selected_img_data[["image_path", "img_x", "img_y"]], width='stretch')
 else:
     st.info("No images selected yet.")
 
-# --- Text Encoders Table ---
 if st.session_state.selected_texts:
     selected_text_data = df[df["text"].isin(st.session_state.selected_texts)]
     st.dataframe(selected_text_data[["text", "text_x", "text_y"]], width='stretch')
@@ -88,7 +85,6 @@ if st.session_state.selected_images or st.session_state.selected_texts:
     st.markdown("---")
     st.subheader("🔎 2D Encoder Spaces")
 
-    # Image scatter
     if st.session_state.selected_images:
         fig_img = px.scatter(
             selected_img_data,
@@ -100,7 +96,6 @@ if st.session_state.selected_images or st.session_state.selected_texts:
     else:
         st.info("No images selected for plotting.")
 
-    # Text scatter
     if st.session_state.selected_texts:
         fig_txt = px.scatter(
             selected_text_data,
@@ -113,111 +108,95 @@ if st.session_state.selected_images or st.session_state.selected_texts:
     else:
         st.info("No texts selected for plotting.")
 
-# ---- Display Readable Similarity Formulas ----
+# ---- Similarity Formulas ----
 st.markdown("---")
 st.subheader("📐 Similarity Formulas")
-
 st.markdown(r"""
 **Euclidean Distance**
-
-The distance between an image vector **vᵢ** and a text vector **vₜ** is:
 
 $$
 d(v_i, v_t) = \sqrt{ \sum_{k=1}^{n} (v_{i,k} - v_{t,k})^2 }
 $$
 
-Where:
-- \( n \) is the number of dimensions of the embeddings  
-- Smaller values → more similar
-
----
-
 **Cosine Similarity**
 
-Measures the angle between **vᵢ** and **vₜ**:
-
 $$
-\text{cosine\_sim}(v_i, v_t) = \frac{v_i \cdot v_t}{\|v_i\| \|v_t\|} 
-= \frac{\sum_{k=1}^{n} v_{i,k} \cdot v_{t,k}}{\sqrt{\sum_{k=1}^{n} v_{i,k}^2} \sqrt{\sum_{k=1}^{n} v_{t,k}^2}}
+\text{cosine\_sim}(v_i, v_t) = \frac{v_i \cdot v_t}{\|v_i\| \|v_t\|}
 $$
-
-- Value ranges from -1 to 1  
-- Larger values → more similar
 """)
 
-# ---- Common Embedding Space ----
+# ---- Common Embedding Space with Zero-Mean & Unit Vectors ----
 if st.session_state.selected_images and st.session_state.selected_texts:
     st.markdown("---")
-    st.subheader("🌐 Common Embedding Space")
+    st.subheader("🌐 Common Embedding Space (Zero-Mean & Unit Vectors)")
 
-    img_coords = selected_img_data[["img_x", "img_y"]].to_numpy()
-    text_coords = selected_text_data[["text_x", "text_y"]].to_numpy()
+    img_coords = selected_img_data[["img_x","img_y"]].to_numpy()
+    text_coords = selected_text_data[["text_x","text_y"]].to_numpy()
 
-    # --- Euclidean distance ---
-    euclidean_distances = np.linalg.norm(img_coords[:, np.newaxis, :] - text_coords[np.newaxis, :, :], axis=2)
+    # Zero-mean
+    img_coords_centered = img_coords - np.mean(img_coords, axis=0)
+    text_coords_centered = text_coords - np.mean(text_coords, axis=0)
+
+    # Unit-normalize
+    img_coords_unit = img_coords_centered / np.linalg.norm(img_coords_centered, axis=1, keepdims=True)
+    text_coords_unit = text_coords_centered / np.linalg.norm(text_coords_centered, axis=1, keepdims=True)
+
+    # Euclidean distance
+    euclidean_distances = np.linalg.norm(img_coords_unit[:, np.newaxis, :] - text_coords_unit[np.newaxis, :, :], axis=2)
     euclidean_table = pd.DataFrame(
         euclidean_distances,
         index=[os.path.basename(p) for p in st.session_state.selected_images],
         columns=st.session_state.selected_texts
     )
 
-    # --- Cosine similarity ---
-    cosine_sim = cosine_similarity(img_coords, text_coords)
+    # Cosine similarity
+    cosine_sim = np.dot(img_coords_unit, text_coords_unit.T)
     cosine_table = pd.DataFrame(
         cosine_sim,
         index=[os.path.basename(p) for p in st.session_state.selected_images],
         columns=st.session_state.selected_texts
     )
 
-    # --- Identify most similar pairs ---
+    # Highlight most similar pairs
     min_euc_idx = np.unravel_index(np.argmin(euclidean_distances), euclidean_distances.shape)
     max_cos_idx = np.unravel_index(np.argmax(cosine_sim), cosine_sim.shape)
 
-    # --- Styling functions ---
     def highlight_min_max(df, highlight_idx):
         styled = pd.DataFrame('', index=df.index, columns=df.columns)
         r, c = highlight_idx
         styled.iloc[r, c] = 'background-color: lightgreen'
         return styled
 
-    # --- Display tables with highlights ---
     st.markdown("**Euclidean Distance (Lower = More Similar)**")
     st.dataframe(euclidean_table.style.apply(lambda df: highlight_min_max(df, min_euc_idx), axis=None))
 
     st.markdown("**Cosine Similarity (Higher = More Similar)**")
     st.dataframe(cosine_table.style.apply(lambda df: highlight_min_max(df, max_cos_idx), axis=None))
 
-    # ---- Best Match / Zero-Shot Classification ----
+    # ---- Best Match / Zero-Shot ----
     st.markdown("---")
     st.subheader("🏆 Best Match & Zero-Shot Prediction")
 
     best_matches = []
     for i, img in enumerate(st.session_state.selected_images):
-        # Euclidean: smaller = more similar
         eu_idx = np.argmin(euclidean_distances[i])
-        best_eu = st.session_state.selected_texts[eu_idx]
-        
-        # Cosine: larger = more similar
         cos_idx = np.argmax(cosine_sim[i])
-        best_cos = st.session_state.selected_texts[cos_idx]
-        
         best_matches.append({
             "Image": img,
-            "Best Match (Euclidean)": best_eu,
-            "Best Match (Cosine)": best_cos
+            "Best Match (Euclidean)": st.session_state.selected_texts[eu_idx],
+            "Best Match (Cosine)": st.session_state.selected_texts[cos_idx]
         })
 
-    best_matches_df = pd.DataFrame(best_matches)
-    st.dataframe(best_matches_df, width='stretch')
+    st.dataframe(pd.DataFrame(best_matches), width='stretch')
 
     st.markdown("""
 **Explanation:**  
 - Each image is compared against all candidate text descriptions.  
 - The text with the **highest similarity** is chosen as the **best match**.  
-- This predicted label represents a **zero-shot classification**—the model was not trained specifically on these labels but generalizes based on its learned understanding of image-text relationships.
+- This predicted label represents a **zero-shot classification**—the model generalizes based on learned image-text relationships.
 """)
 
-    # --- Combined interactive scatter plot with line connecting most similar pair ---
+    # ---- Combined Interactive Scatter ----
     combined_df = pd.DataFrame({
         "x": np.concatenate([img_coords[:,0], text_coords[:,0]]),
         "y": np.concatenate([img_coords[:,1], text_coords[:,1]]),
@@ -231,7 +210,7 @@ if st.session_state.selected_images and st.session_state.selected_texts:
         color_discrete_map={"Image":"blue", "Text":"orange"}
     )
 
-    # Add line connecting most similar pair (Euclidean)
+    # Line for most similar pair (Euclidean)
     img_idx, txt_idx = min_euc_idx
     fig_combined.add_trace(
         go.Scatter(
