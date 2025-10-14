@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 import os
 
 # ---- Page setup ----
@@ -27,7 +28,6 @@ if "selected_texts" not in st.session_state:
 
 # ---- Image Selection ----
 st.subheader("🖼️ Select up to 4 Images")
-
 cols = st.columns(6)
 for idx, image_path in enumerate(image_paths):
     col = cols[idx % 6]
@@ -50,7 +50,6 @@ for idx, image_path in enumerate(image_paths):
 
 # ---- Text Selection ----
 st.subheader("💬 Select up to 4 Texts")
-
 text_cols = st.columns(4)
 for i, text_item in enumerate(texts):
     col = text_cols[i % 4]
@@ -117,3 +116,42 @@ if st.session_state.selected_images or st.session_state.selected_texts:
             st.pyplot(fig_txt, use_container_width=True)
         else:
             st.info("No texts selected for plotting.")
+
+# ---- Common Embedding Space ----
+if st.session_state.selected_images and st.session_state.selected_texts:
+    st.markdown("---")
+    st.subheader("🌐 Common Embedding Space")
+
+    # Prepare coordinates
+    img_coords = selected_img_data[["img_x", "img_y"]].to_numpy()
+    text_coords = selected_text_data[["text_x", "text_y"]].to_numpy()
+    
+    # Compute Euclidean distance matrix (lower = more similar)
+    distances = np.zeros((len(selected_img_data), len(selected_text_data)))
+    for i, img_vec in enumerate(img_coords):
+        for j, text_vec in enumerate(text_coords):
+            distances[i, j] = np.linalg.norm(img_vec - text_vec)
+    
+    # Build similarity table
+    sim_table = pd.DataFrame(distances, 
+                             index=[os.path.basename(p) for p in st.session_state.selected_images],
+                             columns=st.session_state.selected_texts)
+    st.markdown("**Euclidean Distance (Lower = More Similar)**")
+    st.dataframe(sim_table)
+
+    # Combined Scatterplot
+    fig, ax = plt.subplots()
+    ax.scatter(img_coords[:,0], img_coords[:,1], s=100, c='blue', label='Images')
+    ax.scatter(text_coords[:,0], text_coords[:,1], s=100, c='orange', label='Texts')
+    
+    # Annotate points
+    for idx, row in selected_img_data.iterrows():
+        ax.text(row["img_x"], row["img_y"], os.path.basename(row["image_path"]), fontsize=8, ha='right')
+    for idx, row in selected_text_data.iterrows():
+        ax.text(row["text_x"], row["text_y"], row["text"], fontsize=8, ha='right')
+    
+    ax.set_title("Combined 2D Embedding Space")
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.legend()
+    st.pyplot(fig, use_container_width=True)
