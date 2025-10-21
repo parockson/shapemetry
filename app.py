@@ -9,6 +9,8 @@ import random
 import time
 import json
 import streamlit_sortables as sortables  # ✅ moved to the top
+import time
+from PIL import Image
 
 # --------------------------------------------------
 # PAGE CONFIG
@@ -249,81 +251,34 @@ elif st.session_state.Lesson == 1:
                 st.warning("⚠️ Please complete the reflection questions before continuing.")
 
 # --------------------------------------------------
-# LESSON 2 — EMBEDDINGS VISUALIZATION (FULL ROBUST VERSION)
+# LESSON 2 — EMBEDDINGS VISUALIZATION (ENHANCED, WITH REFLECTIONS)
 # --------------------------------------------------
 elif st.session_state.Lesson == 2:
     st.subheader("Lesson 2: Visualize and Process Selected Data")
 
     st.markdown("""
-    In this step, you’ll **move your Selected Images (SI)** and **Texts (ST)** 
+    In this step, you’ll organize your **Selected Images (SI)** and **Texts (ST)** 
     into their respective processing chambers — one for **Computer Vision (Vision)** 
     and one for **Natural Language Processing (NLP)**.
-    Only items placed in the chambers will be processed. ⚙️
     """)
 
-    # --- Initialize chambers ---
+    # --- Initialize chambers and session states ---
     if "vision_chamber" not in st.session_state:
         st.session_state.vision_chamber = []
     if "text_chamber" not in st.session_state:
         st.session_state.text_chamber = []
     if "initial_selected_images" not in st.session_state:
-        # store basenames for consistency
         st.session_state.initial_selected_images = [os.path.basename(img) for img in st.session_state.selected_images]
     if "initial_selected_texts" not in st.session_state:
         st.session_state.initial_selected_texts = st.session_state.selected_texts.copy()
-
-    st.markdown("---")
-    st.markdown("### 🔬 Processing Chambers")
-
-    chamber_cols = st.columns(2)
-
-    # ===== Image Chamber =====
-    with chamber_cols[0]:
-        st.image("static/image/comp_vision.png", caption="🧩 Image Chamber (Vision)", use_container_width=True)
-        st.markdown(
-            "<div style='color:white; font-weight:bold; text-align:center; background:#000;"
-            "padding:6px; border-radius:5px;'>Drop Images (SI) Here ↓</div>",
-            unsafe_allow_html=True,
-        )
-
-        if st.session_state.vision_chamber:
-            img_cols = st.columns(min(len(st.session_state.vision_chamber), 5))
-            for i, img in enumerate(st.session_state.vision_chamber):
-                with img_cols[i % len(img_cols)]:
-                    img_path = next((p for p in image_paths if os.path.basename(p) == img), None)
-                    if img_path and os.path.exists(img_path):
-                        st.image(img_path, width=60)
-                    if st.button("➖", key=f"remove_img_{img}"):
-                        st.session_state.vision_chamber.remove(img)
-                        st.session_state.selected_images.append(img)
-                        st.rerun()
-        else:
-            st.info("No images yet — add from below.")
-
-    # ===== Text Chamber =====
-    with chamber_cols[1]:
-        st.image("static/image/nlp.png", caption="✍️ Text Chamber (NLP)", use_container_width=True)
-        st.markdown(
-            "<div style='color:white; font-weight:bold; text-align:center; background:#000;"
-            "padding:6px; border-radius:5px;'>Drop Texts (ST) Here ↓</div>",
-            unsafe_allow_html=True,
-        )
-
-        if st.session_state.text_chamber:
-            txt_cols = st.columns(min(len(st.session_state.text_chamber), 5))
-            for i, txt in enumerate(st.session_state.text_chamber):
-                with txt_cols[i % len(txt_cols)]:
-                    st.markdown(
-                        f"<div style='border:1px solid #000; border-radius:6px; padding:4px; margin:3px;"
-                        f"background:#f0f0ff; font-size:11px; text-align:center; color:black;'>{txt}</div>",
-                        unsafe_allow_html=True,
-                    )
-                    if st.button("➖", key=f"remove_txt_{txt}"):
-                        st.session_state.text_chamber.remove(txt)
-                        st.session_state.selected_texts.append(txt)
-                        st.rerun()
-        else:
-            st.info("No texts yet — add from below.")
+    if "image_processed" not in st.session_state:
+        st.session_state.image_processed = False
+    if "text_processed" not in st.session_state:
+        st.session_state.text_processed = False
+    if "lesson2_vectors" not in st.session_state:
+        st.session_state.lesson2_vectors = {}
+    if "reflections_lesson2" not in st.session_state:
+        st.session_state.reflections_lesson2 = {}
 
     st.markdown("---")
     st.markdown("### 🎯 Remaining Items")
@@ -340,10 +295,12 @@ elif st.session_state.Lesson == 2:
                     img_path = next((p for p in image_paths if os.path.basename(p) == img), None)
                     if img_path and os.path.exists(img_path):
                         st.image(img_path, width=60)
-                    if st.button("➕", key=f"add_img_{img}"):
+                    if st.button("➕", key=f"add_img_{img}_{i}_lesson2"):
                         st.session_state.selected_images.remove(img)
                         st.session_state.vision_chamber.append(img)
                         st.rerun()
+        else:
+            st.info("All images are in the chamber.")
 
     # --- Remaining Texts (ST) ---
     with remaining_cols[1]:
@@ -357,117 +314,357 @@ elif st.session_state.Lesson == 2:
                         f"background:#f9f9ff; font-size:11px; text-align:center; color:black;'>{txt}</div>",
                         unsafe_allow_html=True,
                     )
-                    if st.button("➕", key=f"add_txt_{txt}"):
+                    if st.button("➕", key=f"add_txt_{i}_lesson2"):
                         st.session_state.selected_texts.remove(txt)
                         st.session_state.text_chamber.append(txt)
                         st.rerun()
+        else:
+            st.info("All texts are in the chamber.")
 
     st.markdown("---")
+    st.markdown("### 🔬 Processing Chambers")
 
-    # --- PROCESS BUTTON ---
-    if not st.session_state.processed:
-        if st.button("⚙️ Process Embeddings"):
-            if not st.session_state.vision_chamber or not st.session_state.text_chamber:
-                st.warning("⚠️ Please move at least one image and one text into the chambers before processing.")
+    chamber_cols = st.columns(2)
+
+    # ===== Image Chamber =====
+    with chamber_cols[0]:
+        st.image("static/image/comp_vision.png", caption="🧩 Image Chamber (Vision)", use_container_width=True)
+        st.markdown("<div style='text-align:center; font-weight:bold;'>Drop Images Here ↓</div>", unsafe_allow_html=True)
+
+        if st.session_state.vision_chamber:
+            img_cols = st.columns(min(len(st.session_state.vision_chamber), 5))
+            for i, img in enumerate(st.session_state.vision_chamber):
+                with img_cols[i % len(img_cols)]:
+                    img_path = next((p for p in image_paths if os.path.basename(p) == img), None)
+                    if img_path and os.path.exists(img_path):
+                        st.image(img_path, width=60)
+                    if st.button("➖", key=f"remove_img_{img}_{i}_lesson2"):
+                        st.session_state.vision_chamber.remove(img)
+                        st.session_state.selected_images.append(img)
+                        st.rerun()
+        else:
+            st.info("No images yet — add from above.")
+
+        # --- Process Image Embeddings (with camera icon) ---
+        st.markdown("##### ⚙️ Process Image Embeddings")
+        if st.button("🖼️ Embed image vectors", key="process_image_embeddings_lesson2"):
+            if not st.session_state.vision_chamber:
+                st.warning("⚠️ Add at least one image.")
             else:
-                with st.spinner("Processing embeddings... please wait"):
-                    for i in range(100):
-                        time.sleep(0.02)
-                        st.progress(i + 1)
-                st.session_state.processed = True
-                st.rerun()
+                if os.path.exists("static/image/camera.jpg"):
+                    st.image("static/image/camera.jpg", width=80)
+                progress = st.progress(0)
+                for i in range(100):
+                    time.sleep(0.02)
+                    progress.progress(i + 1)
+                st.session_state.image_processed = True
+                st.success("✅ Image embeddings ready!")
 
-    # --- REFLECTION QUESTIONS ---
-    if st.session_state.processed:
-        st.markdown("## 📘 CLIP Encoder Projection Formula")
-        st.latex(r"""
-        \text{2D Projection: } 
-        \begin{bmatrix}
-        x_i \\ 
-        y_i
-        \end{bmatrix}
-        = W_{2D}
-        \times 
-        \begin{bmatrix}
-        e_{1} \\ 
-        e_{2} \\ 
-        \vdots \\ 
-        e_{512}
-        \end{bmatrix}
-        """)
+    # ===== Text Chamber =====
+    with chamber_cols[1]:
+        st.image("static/image/nlp.png", caption="✍️ Text Chamber (NLP)", use_container_width=True)
+        st.markdown("<div style='text-align:center; font-weight:bold;'>Drop Texts Here ↓</div>", unsafe_allow_html=True)
 
-        selected_img_data = df[df["image_path"].apply(lambda x: os.path.basename(x) in st.session_state.vision_chamber)]
-        selected_text_data = df[df["text"].isin(st.session_state.text_chamber)]
+        if st.session_state.text_chamber:
+            txt_cols = st.columns(min(len(st.session_state.text_chamber), 5))
+            for i, txt in enumerate(st.session_state.text_chamber):
+                with txt_cols[i % len(txt_cols)]:
+                    st.markdown(
+                        f"<div style='border:1px solid #000; border-radius:6px; padding:4px; margin:3px;"
+                        f"background:#f0f0ff; font-size:11px; text-align:center; color:black;'>{txt}</div>",
+                        unsafe_allow_html=True,
+                    )
+                    if st.button("➖", key=f"remove_txt_{txt}_{i}_lesson2"):
+                        st.session_state.text_chamber.remove(txt)
+                        st.session_state.selected_texts.append(txt)
+                        st.rerun()
+        else:
+            st.info("No texts yet — add from above.")
+
+        # --- Process Text Embeddings (with desktop icon) ---
+        st.markdown("##### ⚙️ Process Text Embeddings")
+        if st.button("💻 Embed Text Vectors", key="process_text_embeddings_lesson2"):
+            if not st.session_state.text_chamber:
+                st.warning("⚠️ Add at least one text.")
+            else:
+                if os.path.exists("static/image/desktop.svg"):
+                    st.image("static/image/desktop.svg", width=80)
+                progress = st.progress(0)
+                for i in range(100):
+                    time.sleep(0.02)
+                    progress.progress(i + 1)
+                st.session_state.text_processed = True
+                st.success("✅ Text embeddings ready!")
+
+    # --- Visualization ---
+    if st.session_state.get("image_processed") or st.session_state.get("text_processed"):
+        st.markdown("---")
+        st.markdown("## 📘 Embedding Visualizations")
 
         col_left, col_right = st.columns(2)
 
-        with col_left:
-            fig_img = px.scatter(
-                selected_img_data, x="img_x", y="img_y",
-                text=[os.path.basename(p) for p in selected_img_data["image_path"]],
-                title="Image Embeddings (2D Projection)", color_discrete_sequence=["blue"]
-            )
-            st.plotly_chart(fig_img, use_container_width=True)
-            st.markdown("#### 🖼️ Image Embedding Table")
-            for _, row in selected_img_data.iterrows():
-                c1, c2, c3 = st.columns([1, 2, 2])
-                with c1:
-                    if os.path.exists(row["image_path"]):
-                        st.image(row["image_path"], width=45)
-                with c2:
-                    st.markdown(f"**X:** {row['img_x']:.3f}")
-                with c3:
-                    st.markdown(f"**Y:** {row['img_y']:.3f}")
+        # === Image Embeddings Graph ===
+        if st.session_state.get("image_processed"):
+            with col_left:
+                st.markdown("### 🖼️ Image Embeddings Projection (2D)")
+                selected_img_data = df[df["image_path"].apply(
+                    lambda x: os.path.basename(x) in st.session_state.vision_chamber
+                )]
 
-        with col_right:
-            fig_txt = px.scatter(
-                selected_text_data, x="text_x", y="text_y",
-                text=selected_text_data["text"],
-                title="Text Embeddings (2D Projection)", color_discrete_sequence=["orange"]
-            )
-            st.plotly_chart(fig_txt, use_container_width=True)
-            st.markdown("#### 📝 Text Embedding Table")
-            st.dataframe(
-                selected_text_data[["text", "text_x", "text_y"]]
-                .rename(columns={"text": "Text", "text_x": "X-Coordinate", "text_y": "Y-Coordinate"}),
-                hide_index=True, use_container_width=True,
-            )
+                if not selected_img_data.empty:
+                    fig_img = px.scatter(
+                        selected_img_data,
+                        x="img_x", y="img_y",
+                        text=[os.path.basename(p) for p in selected_img_data["image_path"]],
+                        title="Image Embeddings (2D)",
+                        color_discrete_sequence=["#007BFF"]
+                    )
+                    fig_img.update_traces(textfont=dict(color="black", size=12))
+                    fig_img.update_layout(plot_bgcolor="white", paper_bgcolor="white")
+                    st.plotly_chart(fig_img, use_container_width=True)
+                else:
+                    st.info("No embeddings found for selected images.")
 
-        # --- Navigation ---
+                st.markdown("##### 🧮 Image Embedding Vectors (Editable)")
+                img_vectors = pd.DataFrame([
+                    {"Image": os.path.basename(p), "X": "", "Y": ""} 
+                    for p in st.session_state.vision_chamber
+                ])
+                updated_img_vectors = st.data_editor(img_vectors, num_rows="dynamic", use_container_width=True, key="img_vectors_lesson2")
+                st.session_state.lesson2_vectors["images"] = updated_img_vectors.to_dict(orient="records")
+
+        # === Text Embeddings Graph ===
+        if st.session_state.get("text_processed"):
+            with col_right:
+                st.markdown("### ✍️ Text Embeddings Projection (2D)")
+                selected_txt_data = df[df["text"].isin(st.session_state.text_chamber)]
+
+                if not selected_txt_data.empty:
+                    fig_txt = px.scatter(
+                        selected_txt_data,
+                        x="text_x", y="text_y",
+                        text=selected_txt_data["text"],
+                        title="Text Embeddings (2D)",
+                        color_discrete_sequence=["#FF8800"]
+                    )
+                    fig_txt.update_traces(textfont=dict(color="black", size=12))
+                    fig_txt.update_layout(plot_bgcolor="white", paper_bgcolor="white")
+                    st.plotly_chart(fig_txt, use_container_width=True)
+                else:
+                    st.info("No embeddings found for selected texts.")
+
+                st.markdown("##### 🧮 Text Embedding Vectors (Editable)")
+                txt_vectors = pd.DataFrame([
+                    {"Text": txt, "X": "", "Y": ""} 
+                    for txt in st.session_state.text_chamber
+                ])
+                updated_txt_vectors = st.data_editor(txt_vectors, num_rows="dynamic", use_container_width=True, key="txt_vectors_lesson2")
+                st.session_state.lesson2_vectors["texts"] = updated_txt_vectors.to_dict(orient="records")
+
+    # --- Reflection Questions (always visible after processing) ---
+    if st.session_state.get("image_processed") or st.session_state.get("text_processed"):
         st.markdown("---")
-        col_back, col_refresh, col_next = st.columns(3)
-        with col_back:
-            if st.button("⬅️ Back"):
+        st.subheader("💡 Reflection Questions (Required for Lesson 2)")
+
+        fields_selected_lesson2 = st.multiselect(
+            "1️⃣ Which of these fields of study did you apply their concepts in this lesson?",
+            ["Data Science", "Artificial Intelligence", "Mathematics Education"],
+            key="fields_selected_lesson2"
+        )
+        reflection_text_lesson2 = st.text_area(
+            "2️⃣ Describe which concepts you used from each field.",
+            placeholder="E.g., I used cosine similarity from AI and vector projection from mathematics...",
+            key="reflection_text_lesson2"
+        )
+        action_items_lesson2 = st.text_input(
+            "3️⃣ Next steps / action items (optional)",
+            placeholder="E.g., refine image preprocessing, tune embedding dims...",
+            key="action_items_lesson2"
+        )
+
+        ready = bool(fields_selected_lesson2) and reflection_text_lesson2.strip()
+
+        if ready:
+            st.session_state.reflections_lesson2 = {
+                "fields": fields_selected_lesson2,
+                "reflection": reflection_text_lesson2,
+                "actions": action_items_lesson2
+            }
+
+        col_ref_back, col_ref_next = st.columns(2)
+        with col_ref_back:
+            if st.button("⬅️ Back", key="back_ref_lesson2"):
                 st.session_state.Lesson = 1
-                st.session_state.processed = False
                 st.rerun()
-
-        with col_refresh:
-            if st.button("🔄 Refresh Session"):
-                st.session_state.selected_images = st.session_state.initial_selected_images.copy()
-                st.session_state.selected_texts = st.session_state.initial_selected_texts.copy()
-                st.session_state.vision_chamber = []
-                st.session_state.text_chamber = []
-                st.session_state.processed = False
-                st.success("🔁 Lesson 2 reset. Chambers cleared, items restored.")
-                st.rerun()
-
-        with col_next:
-            if st.button("Next ➡️"):
+        with col_ref_next:
+            if ready and st.button("Next ➡️", key="next_ref_lesson2"):
                 st.session_state.Lesson = 3
-                st.session_state.processed = False
                 st.rerun()
+            elif not ready:
+                st.warning("⚠️ Please complete the reflection questions before continuing.")
 
-
-
-
-
+    
 
 
 # --------------------------------------------------
-# LESSON 3 — ZERO-SHOT SIMILARITY (ROBUST VERSION)
+# LESSON 3 — DATA NORMALIZATION (UNIT CIRCLE)
 # --------------------------------------------------
 elif st.session_state.Lesson == 3:
+    st.subheader("Lesson 3: Data Normalization (Unit Circle)")
+
+    st.markdown("""
+    In this lesson, we normalize the **embedding vectors** generated in Lesson 2.
+    Normalization ensures that all vectors lie on a **unit circle**, making
+    comparison and distance calculations fairer across dimensions.
+    """)
+
+    # --- Retrieve vectors from Lesson 2 ---
+    vectors_data = st.session_state.get("lesson2_vectors", {})
+    img_vectors = vectors_data.get("images", [])
+    txt_vectors = vectors_data.get("texts", [])
+
+    if not img_vectors and not txt_vectors:
+        st.warning("⚠️ No vectors found. Please complete Lesson 2 first.")
+        if st.button("⬅️ Go Back to Lesson 2"):
+            st.session_state.Lesson = 2
+            st.rerun()
+    else:
+        st.markdown("### 📊 Before Normalization")
+        col1, col2 = st.columns(2)
+
+        # --- Convert to DataFrames ---
+        if img_vectors:
+            df_img = pd.DataFrame(img_vectors)
+            df_img = df_img[df_img["X"].astype(str).str.strip() != ""]
+            df_img[["X", "Y"]] = df_img[["X", "Y"]].astype(float)
+
+            with col1:
+                st.markdown("#### 🖼️ Image Vectors")
+                fig_img_before = px.scatter(
+                    df_img, x="X", y="Y", text="Image", color_discrete_sequence=["#007BFF"],
+                    title="Image Embeddings (Before Normalization)"
+                )
+                fig_img_before.update_traces(textfont=dict(color="black", size=11))
+                fig_img_before.update_layout(plot_bgcolor="white", paper_bgcolor="white")
+                st.plotly_chart(fig_img_before, use_container_width=True)
+
+        if txt_vectors:
+            df_txt = pd.DataFrame(txt_vectors)
+            df_txt = df_txt[df_txt["X"].astype(str).str.strip() != ""]
+            df_txt[["X", "Y"]] = df_txt[["X", "Y"]].astype(float)
+
+            with col2:
+                st.markdown("#### ✍️ Text Vectors")
+                fig_txt_before = px.scatter(
+                    df_txt, x="X", y="Y", text="Text", color_discrete_sequence=["#FF8800"],
+                    title="Text Embeddings (Before Normalization)"
+                )
+                fig_txt_before.update_traces(textfont=dict(color="black", size=11))
+                fig_txt_before.update_layout(plot_bgcolor="white", paper_bgcolor="white")
+                st.plotly_chart(fig_txt_before, use_container_width=True)
+
+        st.markdown("---")
+        st.markdown("### ⚙️ Normalization Process")
+
+        progress = st.progress(0)
+        for i in range(100):
+            time.sleep(0.01)
+            progress.progress(i + 1)
+
+        # --- Normalize Function ---
+        def normalize_df(df):
+            norm = np.sqrt(df["X"] ** 2 + df["Y"] ** 2)
+            df["X_norm"] = df["X"] / norm
+            df["Y_norm"] = df["Y"] / norm
+            return df
+
+        df_img_norm, df_txt_norm = None, None
+        if img_vectors:
+            df_img_norm = normalize_df(df_img.copy())
+        if txt_vectors:
+            df_txt_norm = normalize_df(df_txt.copy())
+
+        st.success("✅ Normalization Complete! Each vector now lies on the unit circle.")
+
+        st.markdown("### 🌀 After Normalization")
+        col3, col4 = st.columns(2)
+
+        if df_img_norm is not None:
+            with col3:
+                st.markdown("#### 🖼️ Normalized Image Vectors")
+                fig_img_after = px.scatter(
+                    df_img_norm, x="X_norm", y="Y_norm", text="Image",
+                    color_discrete_sequence=["#007BFF"],
+                    title="Image Embeddings (After Normalization)"
+                )
+                fig_img_after.update_traces(textfont=dict(color="black", size=11))
+                fig_img_after.update_layout(plot_bgcolor="white", paper_bgcolor="white")
+                st.plotly_chart(fig_img_after, use_container_width=True)
+
+        if df_txt_norm is not None:
+            with col4:
+                st.markdown("#### ✍️ Normalized Text Vectors")
+                fig_txt_after = px.scatter(
+                    df_txt_norm, x="X_norm", y="Y_norm", text="Text",
+                    color_discrete_sequence=["#FF8800"],
+                    title="Text Embeddings (After Normalization)"
+                )
+                fig_txt_after.update_traces(textfont=dict(color="black", size=11))
+                fig_txt_after.update_layout(plot_bgcolor="white", paper_bgcolor="white")
+                st.plotly_chart(fig_txt_after, use_container_width=True)
+
+        # Save normalized vectors for next lesson
+        st.session_state["lesson3_vectors"] = {
+            "images": df_img_norm.to_dict(orient="records") if df_img_norm is not None else [],
+            "texts": df_txt_norm.to_dict(orient="records") if df_txt_norm is not None else []
+        }
+
+        # --- Reflection Section ---
+        st.markdown("---")
+        st.subheader("💭 Reflection Questions (Lesson 3)")
+
+        q1 = st.multiselect(
+            "1️⃣ Which mathematical operations were used in normalization?",
+            ["Vector Length", "Dot Product", "Unit Circle Concept", "Division by Magnitude"],
+            key="lesson3_q1"
+        )
+        q2 = st.text_area(
+            "2️⃣ Explain why normalization helps in comparing embeddings.",
+            placeholder="E.g., normalization makes all vectors comparable regardless of scale...",
+            key="lesson3_q2"
+        )
+        q3 = st.text_input(
+            "3️⃣ What next step will you take to analyze these embeddings?",
+            placeholder="E.g., compute cosine similarity or clustering...",
+            key="lesson3_q3"
+        )
+
+        ready3 = bool(q1) and q2.strip()
+
+        if ready3:
+            st.session_state["reflections_lesson3"] = {
+                "concepts": q1,
+                "reflection": q2,
+                "next_steps": q3
+            }
+
+        # --- Navigation Buttons ---
+        st.markdown("---")
+        nav_col1, nav_col2, nav_col3 = st.columns(3)
+        with nav_col1:
+            if st.button("🔄 Refresh", key="refresh_lesson3"):
+                st.rerun()
+        with nav_col2:
+            if st.button("⬅️ Back", key="back_lesson3"):
+                st.session_state.Lesson = 2
+                st.rerun()
+        with nav_col3:
+            if ready3 and st.button("Next ➡️", key="next_lesson3"):
+                st.session_state.Lesson = 4
+                st.rerun()
+            elif not ready3:
+                st.warning("⚠️ Please complete the reflection questions before continuing.")
+
     st.subheader("Lesson 3: 🧠 Zero-Shot Similarity Analysis")
 
     # --- Select data based on basenames to avoid mismatch ---
