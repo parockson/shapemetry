@@ -122,8 +122,8 @@ if st.session_state.Lesson == 0:
 
         with col1:
             name = st.text_input("Full Name*", placeholder="Enter your full name")
-            age = st.number_input("🎂 Age*", min_value=5, max_value=100, value=None, placeholder="Enter your age")
-            gender = st.selectbox("🚻 Gender*", ["Select", "Male", "Female", "Non-binary", "Prefer not to say", "Other"])
+            age = st.number_input("Age*", min_value=5, max_value=100, value=None, placeholder="Enter your age")
+            gender = st.selectbox(" Gender*", ["Select", "Male", "Female", "Non-binary", "Prefer not to say", "Other"])
             grade_level = st.selectbox(
                 "🎓 Grade Level*", ["Select", "Junior High", "Senior High", "Undergraduate", "Postgraduate", "Professional", "Other"]
             )
@@ -136,29 +136,29 @@ if st.session_state.Lesson == 0:
                 if st.session_state.selected_country in country_names else 0,
                 key="country_select"
             )
-            st.session_state.selected_country = selected_country
+            # st.session_state.selected_country = selected_country
 
-            region_options = ["Select a Region/State"]
-            if selected_country != "Select a Country":
-                country_info = next((c for c in countries_data if c["name"] == selected_country), None)
-                if country_info and "states" in country_info:
-                    region_options += [s["name"] for s in country_info["states"]]
+            # region_options = ["Select a Region/State"]
+            # if selected_country != "Select a Country":
+            #     country_info = next((c for c in countries_data if c["name"] == selected_country), None)
+            #     if country_info and "states" in country_info:
+            #         region_options += [s["name"] for s in country_info["states"]]
 
-            selected_region = st.selectbox(
-                "🏙️ Region / State", region_options,
-                index=region_options.index(st.session_state.selected_region)
-                if st.session_state.selected_region in region_options else 0,
-                key="region_select"
-            )
-            st.session_state.selected_region = selected_region
+            # selected_region = st.selectbox(
+            #     "🏙️ Region / State", region_options,
+            #     index=region_options.index(st.session_state.selected_region)
+            #     if st.session_state.selected_region in region_options else 0,
+            #     key="region_select"
+            # )
+            # st.session_state.selected_region = selected_region
 
         st.markdown("---")
         consent = st.checkbox(
-            "✅ I consent to the collection and use of my data (text, images, or both) "
+            "By checking this box, I consent to the collection and use of my data "
             "for research and model training within this project."
         )
 
-        submitted = st.form_submit_button("Start Learning 🚀")
+        submitted = st.form_submit_button("Start Learning")
         if submitted:
             if not name.strip():
                 st.warning("⚠️ Please enter your full name.")
@@ -168,8 +168,8 @@ if st.session_state.Lesson == 0:
                 st.warning("⚠️ Please select your gender.")
             elif selected_country == "Select a Country":
                 st.warning("⚠️ Please select your country.")
-            elif selected_region == "Select a Region/State":
-                st.warning("⚠️ Please select your region/state.")
+            # elif selected_region == "Select a Region/State":
+                # st.warning("⚠️ Please select your region/state.")
             elif grade_level == "Select":
                 st.warning("⚠️ Please select your grade level.")
             elif not consent:
@@ -180,11 +180,11 @@ if st.session_state.Lesson == 0:
                     "age": age,
                     "gender": gender,
                     "country": selected_country,
-                    "region": selected_region,
+                    # "region": selected_region,
                     "grade_level": grade_level,
                     "consent": consent,
                 }
-                st.success(f"Welcome, {name} ({age}, {gender}) from {selected_region}, {selected_country}! 🎉")
+                st.success(f"Welcome, {name} ({age}, {gender}) from  {selected_country}! ")
                 st.session_state.Lesson = 1
                 st.rerun()
 
