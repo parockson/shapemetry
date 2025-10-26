@@ -322,14 +322,14 @@ elif st.session_state.Lesson == 2:
             st.info("All texts are in the chamber.")
 
     st.markdown("---")
-    st.markdown("### 🔬 Processing Chambers")
+    st.markdown("### 🔬 Embeddings")
 
     chamber_cols = st.columns(2)
 
     # ===== Image Chamber =====
     with chamber_cols[0]:
-        st.image("static/image/comp_vision.png", caption="🧩 Image Chamber (Vision)", use_container_width=True)
-        st.markdown("<div style='text-align:center; font-weight:bold;'>Drop Images Here ↓</div>", unsafe_allow_html=True)
+        # st.image("static/image/comp_vision.png", caption="🧩 Image Chamber (Vision)", use_container_width=True)
+        # st.markdown("<div style='text-align:center; font-weight:bold;'>Drop Images Here ↓</div>", unsafe_allow_html=True)
 
         if st.session_state.vision_chamber:
             img_cols = st.columns(min(len(st.session_state.vision_chamber), 5))
@@ -362,8 +362,8 @@ elif st.session_state.Lesson == 2:
 
     # ===== Text Chamber =====
     with chamber_cols[1]:
-        st.image("static/image/nlp.png", caption="✍️ Text Chamber (NLP)", use_container_width=True)
-        st.markdown("<div style='text-align:center; font-weight:bold;'>Drop Texts Here ↓</div>", unsafe_allow_html=True)
+        # st.image("static/image/nlp.png", caption="✍️ Text Chamber (NLP)", use_container_width=True)
+        # st.markdown("<div style='text-align:center; font-weight:bold;'>Drop Texts Here ↓</div>", unsafe_allow_html=True)
 
         if st.session_state.text_chamber:
             txt_cols = st.columns(min(len(st.session_state.text_chamber), 5))
